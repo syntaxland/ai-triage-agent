@@ -230,11 +230,12 @@ requests.exceptions.ConnectTimeout: HTTPSConnectionPool(host='api.stripe.com', p
 
 ## 📹 Demo
 
-Include your Loom / walkthrough link here:
+Loom walkthrough link:
 
 ```
 
-[Demo Video Link]
+[Video Link]
+
 ```
 
 ---

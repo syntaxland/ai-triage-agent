@@ -1,24 +1,21 @@
 import os
 import requests
 import json
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROK_API_KEY")
+GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 URL = "https://api.groq.com/openai/v1/chat/completions"
 
 SYSTEM_PROMPT = """
 You are a DevOps incident triage agent.
 
-Given logs or errors:
-1. Classify issue
-2. Find root cause
-3. Suggest fix
+Return ONLY valid JSON. No markdown. No backticks. No explanation.
 
-Return ONLY valid JSON:
-
+Format:
 {
   "category": "",
   "root_cause": "",
@@ -26,9 +23,30 @@ Return ONLY valid JSON:
 }
 """
 
+def extract_json(text: str):
+    if not text:
+        return {"raw": "empty response"}
+
+    cleaned = re.sub(r"```json|```", "", text).strip()
+
+    try:
+        return json.loads(cleaned)
+    except:
+        pass
+
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except:
+            pass
+
+    return {"raw": text}
+
+
 def triage(log):
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {GROK_API_KEY}",
         "Content-Type": "application/json"
     }
 
@@ -41,12 +59,15 @@ def triage(log):
         "temperature": 0.2
     }
 
-    res = requests.post(URL, headers=headers, json=data)
-
-    output = res.json()
-
     try:
+        res = requests.post(URL, headers=headers, json=data)
+        res.raise_for_status()
+
+        output = res.json()
         content = output["choices"][0]["message"]["content"]
-        return json.loads(content)
-    except:
-        return {"raw": output}
+
+        return extract_json(content)
+
+    except Exception as e:
+        return {"raw": str(e)}
+    
